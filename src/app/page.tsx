@@ -45,12 +45,22 @@ export default function Home() {
         sourceCurrency: sourceCurrency.numericCode,
         destinationCurrency: destinationCurrency.numericCode,
         amount,
-        markupRate
+        markupRate,
+        cardNetwork
       });
       
-      const response = await fetch(
-        `/api/exchange?sourceCurrency=${sourceCurrency.numericCode}&destinationCurrency=${destinationCurrency.numericCode}&amount=${amount}&markupRate=0`
-      );
+      let response;
+      if (cardNetwork === 'mastercard') {
+        // Use Mastercard API
+        response = await fetch(
+          `/api/exchange/mastercard?sourceCurrency=${sourceCurrency.code}&destinationCurrency=${destinationCurrency.code}&amount=${amount}&bankFee=0`
+        );
+      } else {
+        // Use Visa API
+        response = await fetch(
+          `/api/exchange/visa?sourceCurrency=${sourceCurrency.numericCode}&destinationCurrency=${destinationCurrency.numericCode}&amount=${amount}&markupRate=0`
+        );
+      }
       
       if (!response.ok) {
         const errorData = await response.json();

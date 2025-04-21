@@ -1,5 +1,4 @@
-const { createServer } = require('https');
-const { parse } = require('url');
+const https = require('https');
 const next = require('next');
 const fs = require('fs');
 const path = require('path');
@@ -8,62 +7,66 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+const port = process.env.PORT || 3000;
+
+// Check if certificate files exist
+const certPath = path.join(__dirname, 'cert');
+const keyPath = path.join(certPath, 'key_ffd2a608-0a6e-4ef2-9a27-a556fc4bca5b.pem');
+const certPathFile = path.join(certPath, 'cert.pem');
+const caPath = path.join(certPath, 'DigiCertGlobalRootCA.crt');
+
+if (!fs.existsSync(keyPath) || !fs.existsSync(certPathFile) || !fs.existsSync(caPath)) {
+  console.error('SSL certificate files not found. Please ensure all certificate files are present in the cert directory.');
+  process.exit(1);
+}
+
 const httpsOptions = {
-  key: fs.readFileSync(path.join(__dirname, 'cert/key_ffd2a608-0a6e-4ef2-9a27-a556fc4bca5b.pem')),
-  cert: fs.readFileSync(path.join(__dirname, 'cert/cert.pem')),
-  ca: fs.readFileSync(path.join(__dirname, 'cert/DigiCertGlobalRootCA.crt')),
-  requestCert: false, // Don't require client certificates
-  rejectUnauthorized: false, // Allow connections without valid client certs for testing
-  minVersion: 'TLSv1.2',
-  ciphers: 'HIGH:!aNULL:!MD5:!RC4'
+  key: fs.readFileSync(keyPath),
+  cert: fs.readFileSync(certPathFile),
+  ca: fs.readFileSync(caPath),
+  rejectUnauthorized: true
 };
 
-// For debugging TLS/SSL issues
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 app.prepare().then(() => {
-  const server = createServer(httpsOptions, async (req, res) => {
-    try {
-      // Set CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-      // Handle preflight requests
-      if (req.method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
-        return;
-      }
-
-      // Log request details
-      console.log('Request received:', {
-        url: req.url,
-        method: req.method,
-        headers: req.headers
-      });
-
-      const parsedUrl = parse(req.url, true);
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error handling request:', err);
-      if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Internal Server Error' }));
-      }
+  const server = https.createServer(httpsOptions, (req, res) => {
+    // Set secure headers
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    
+    // Configure CORS with specific allowed origins
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://localhost:3000'];
+    const origin = req.headers.origin;
+    
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
     }
+    
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
+    console.log(`Request received: ${req.method} ${req.url}`);
+    handle(req, res);
   });
 
-  server.on('tlsClientError', (err, tlsSocket) => {
-    console.error('TLS Client Error:', err);
+  server.listen(port, '0.0.0.0', (err) => {
+    if (err) {
+      console.error('Error starting server:', err);
+      process.exit(1);
+    }
+    console.log(`> Ready on https://localhost:${port}`);
   });
 
-  server.on('error', (err) => {
-    console.error('Server Error:', err);
-  });
-
-  server.listen(3000, (err) => {
-    if (err) throw err;
-    console.log('> Ready on https://localhost:3000');
+  server.on('error', (error) => {
+    console.error('Server error:', error);
   });
 }); 
