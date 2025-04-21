@@ -3,7 +3,7 @@ import path from 'path';
 
 const CERT_DIR = path.join(process.cwd(), 'cert');
 
-export const getCertificates = () => {
+/*export const getCertificates = () => {
   try {
     return {
       cert: fs.readFileSync(path.join(CERT_DIR, 'cert.pem')),
@@ -14,4 +14,17 @@ export const getCertificates = () => {
     console.error('Error loading certificates:', error);
     throw new Error('Failed to load SSL certificates');
   }
-}; 
+}; */
+
+export const getCertificates = () => {
+  try {
+    const cert = Buffer.from(process.env.CERT_PEM_BASE64 || '', 'base64').toString('utf-8');
+    const key = Buffer.from(process.env.KEY_PEM_BASE64 || '', 'base64').toString('utf-8');
+    const ca = Buffer.from(process.env.CA_PEM_BASE64 || '', 'base64').toString('utf-8');
+
+    return { cert, key, ca };
+  } catch (error) {
+    console.error('Error loading certificates:', error);
+    throw new Error('Failed to load SSL certificates from env vars');
+  }
+};
