@@ -108,7 +108,7 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">From Currency</label>
-              <Combobox value={sourceCurrency} onChange={setSourceCurrency}>
+              <Combobox value={sourceCurrency} onChange={(value: Currency) => setSourceCurrency(value)}>
                 <div className="relative">
                   <Combobox.Input
                     className="w-full p-2 border rounded"
@@ -148,7 +148,7 @@ export default function Home() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">To Currency</label>
-              <Combobox value={destinationCurrency} onChange={setDestinationCurrency}>
+              <Combobox value={destinationCurrency} onChange={(value: Currency) => setDestinationCurrency(value)}>
                 <div className="relative">
                   <Combobox.Input
                     className="w-full p-2 border rounded"
